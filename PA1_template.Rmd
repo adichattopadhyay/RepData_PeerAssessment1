@@ -8,18 +8,121 @@ output:
 
 ## Loading and preprocessing the data
 
+We need to load the data from the file. So I used the variable f to store the file location of the csv and loaded it in with the read.csv function. 
 
+```{r echo=TRUE}
+f = "./Data/activity.csv"
+data = read.csv(f, colClasses = c("numeric", "character", "numeric"))
+```
 
 ## What is mean total number of steps taken per day?
 
+To get a histogram of the total number of steps we must sum all the number of steps by day
 
+```{r echo=TRUE}
+stepsPerDay = aggregate(data$steps,by=list(data$date),sum,na.rm=TRUE)
+```
+
+Now we can turn this into a histogram. First we want to give column names, however.
+```{r echo=TRUE}
+colnames(stepsPerDay)=c("Date", "sum")
+hist(stepsPerDay$sum, xlab="Total Steps per day", main="Histogram of Steps Total Taken Per Day.")
+```
+
+To obtain the mean and median of these sums we can use this code:
+```{r echo=TRUE}
+mean(stepsPerDay$sum)
+median(stepsPerDay$sum)
+```
 
 ## What is the average daily activity pattern?
 
+To create our time series plot, we must first get the average number of steps taken across each time interval.
 
+```{r echo=TRUE}
+stepsMean=aggregate(data$steps,by=list(data$interval),mean,na.rm=TRUE)
+```
+
+Now we can plot this, but first we should give column names.
+```{r echo=TRUE}
+colnames(stepsMean)=c("interval","steps")
+plot(stepsMean$interval, stepsMean$steps, type="l", xlab = "5-Minute Intervals", ylab="Mean Steps Taken", main="Steps")
+```
+
+To find the interval that on average had the maximum number of steps we use this code:
+
+```{r echo=TRUE}
+stepsMean$interval[which.max(stepsMean$steps)]
+```
 
 ## Imputing missing values
 
+To find the total number of rows that are missing we can use this code:
 
+```{r echo=TRUE}
+sum(is.na(data))
+```
+
+We can replace these values with the mean of the five minute interval of the row with the missing data.
+
+As we are making edits with the original dataframe, we should make a copy of it.
+```{r echo=TRUE}
+dataCopy = data
+```
+
+We can now calculate the missing values:
+```{r echo=TRUE}
+missingMeans = by(data$steps,data$interval,mean,na.rm=TRUE)
+```
+
+Now we can match up the intervals and replace the missing values
+```{r echo=TRUE}
+dataCopy[is.na(dataCopy),1] = missingMeans[as.character(dataCopy[is.na(dataCopy),3])]
+```
+
+Now we can redo some of the earlier calculations but for the new dataframe.
+```{r echo=TRUE}
+#get the total steps per day and make a histogram
+stepsPerDay2 = aggregate(dataCopy$steps,by=list(dataCopy$date),sum,na.rm=TRUE)
+colnames(stepsPerDay2)=c("Date", "sum")
+hist(stepsPerDay2$sum, xlab="Total Steps per day", main="Histogram of Steps Total Taken Per Day.")
+#mean and median
+mean(stepsPerDay2$sum)
+median(stepsPerDay2$sum)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+First we should get the days of the week out of the Date
+
+```{r echo=TRUE}
+dotw = weekdays(as.Date(dataCopy$date))
+```
+
+Now we can divide this into two, weekends and weekdays
+```{r echo=TRUE}
+weekends=(dotw=="Saturday" | dotw=="Sunday")
+dotw[weekends] = "Weekend"
+dotw[!weekends] = "Weekday"
+```
+
+Now we should add this info to the dataframe, we'll use dataCopy as we are changing the dataframe.
+
+```{r echo=TRUE}
+dataCopy$dotw=factor(dotw)
+```
+
+Now we can create our panel plot. We need to get the mean number of steps by if it is a weekend or weekday and by interval
+
+```{r echo=TRUE}
+sumMeans = aggregate(dataCopy$steps,by=list(dataCopy$interval, dataCopy$dotw),mean)
+```
+
+Now we can finally plot it! First add column names, however.
+```{r echo=TRUE}
+colnames(sumMeans)=c("interval","dayType","steps")
+
+library(lattice)
+
+xyplot(sumMeans$steps ~ sumMeans$interval|sumMeans$dayType,sumMeans,type="l",layout=c(1,2), xlab ="5-Minute Interval", ylab="Average numver of steps")
+```
